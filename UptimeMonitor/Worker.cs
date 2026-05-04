@@ -1,9 +1,9 @@
 namespace UptimeMonitor
 {
-    public class Worker(string url, ILogger<Worker> logger) : BackgroundService
+    public class Worker(IConfiguration configuration, ILogger<Worker> logger) : BackgroundService
     {
-        private static HttpClient _httpClient = new();
-        public string Url { get; set; } = url;
+        private static readonly HttpClient HttpClient = new();
+        private readonly string _url = configuration["MonitorSettings:Url"] ?? throw new InvalidOperationException("MonitorSettings:Url is missing from appsettings.json");
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -14,15 +14,24 @@ namespace UptimeMonitor
                     logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
                 }
 
-                var response = await _httpClient.GetAsync(Url, stoppingToken);
-                if (response.IsSuccessStatusCode)
+                try
                 {
-                    logger.LogInformation("URL {url} is up. Status code: {statusCode}", Url, response.StatusCode);
+                    var response = await HttpClient.GetAsync(_url, stoppingToken);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        logger.LogInformation("URL {url} is up. Status code: {statusCode}", _url, response.StatusCode);
+                    }
+                    else
+                    {
+                        logger.LogWarning("URL {url} is down. Status code: {statusCode}", _url, response.StatusCode);
+                    }
                 }
-                else
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    logger.LogWarning("URL {url} is down. Status code: {statusCode}", Url, response.StatusCode);
+                    logger.LogError(ex, "Failed to reach URL {url}", _url);
                 }
+
+                await Task.Delay(10000, stoppingToken);
             }
         }
     }
