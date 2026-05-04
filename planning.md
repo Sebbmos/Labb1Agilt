@@ -5,7 +5,7 @@
       so we can work from the same point.
 
 * Implement service core logic
-    - As a developer I want the service to log return whether specified URL returned a 200 OK or not
+    - As a user I want the service to log return whether specified URL returned a 200 OK or not
 
 * Configure service
     - As a system administrator I want the service to read a specified URL and a set time interval to monitor
