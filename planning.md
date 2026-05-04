@@ -1,8 +1,8 @@
 --- HIGHEST PRIORITY ---
 
 * Create .NET project base and push to repo
- - As a developer I want a ready foundation of the project structure in the repo
-   so we can work from the same point.
+    - As a developer I want a ready foundation of the project structure in the repo
+      so we can work from the same point.
 
 * Implement service core logic
  - As a developer I want the service to log return whether specified URL returned a 200 OK or not
