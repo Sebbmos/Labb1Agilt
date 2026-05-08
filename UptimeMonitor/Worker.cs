@@ -34,7 +34,8 @@ namespace UptimeMonitor
                         }
                         else
                         {
-                            logger.LogWarning("Request finished in {responsetime} ms. URL {url} is down. Status code: {statusCode}", stopwatch.ElapsedMilliseconds, url, response.StatusCode);                            
+                            logger.LogWarning("Request finished in {responsetime} ms. The URL {url} is down. Status code: {statusCode}. Contact support for more information or assistence",
+                            stopwatch.ElapsedMilliseconds, url, response.StatusCode);
                         }
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
