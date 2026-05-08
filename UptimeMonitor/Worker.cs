@@ -28,14 +28,15 @@ namespace UptimeMonitor
                         {
                             logger.LogInformation("Request finished in {responsetime} ms.URL {url} is up. Status code: {statusCode}", stopwatch.ElapsedMilliseconds, url, response.StatusCode);
                         }
+                        else if (stopwatch.ElapsedMilliseconds > 1000 && response.IsSuccessStatusCode)
+                        {
+                            logger.LogWarning("Request finished in {responsetime} ms. URL {url} uptime check longer than desirable but seems to be up. Status code: {statusCode}", stopwatch.ElapsedMilliseconds, url, response.StatusCode);
+                        }
                         else
                         {
                             logger.LogWarning("Request finished in {responsetime} ms. The URL {url} is down. Status code: {statusCode}. Contact support for more information or assistence",
                             stopwatch.ElapsedMilliseconds, url, response.StatusCode);
                         }
-
-
-
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
