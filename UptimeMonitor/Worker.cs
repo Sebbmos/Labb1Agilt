@@ -16,14 +16,19 @@ namespace UptimeMonitor
 
                 try
                 {
+                    var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
                     var response = await HttpClient.GetAsync(_url, stoppingToken);
+
+                    stopwatch.Stop();
+
                     if (response.IsSuccessStatusCode)
                     {
-                        logger.LogInformation("URL {url} is up. Status code: {statusCode}", _url, response.StatusCode);
+                        logger.LogInformation("Request finished in {responsetime} ms.URL {url} is up. Status code: {statusCode}", stopwatch.ElapsedMilliseconds, _url, response.StatusCode);
                     }
                     else
                     {
-                        logger.LogWarning("URL {url} is down. Status code: {statusCode}", _url, response.StatusCode);
+                        logger.LogWarning("Request finished in {responsetime} ms. URL {url} is down. Status code: {statusCode}", stopwatch.ElapsedMilliseconds, _url, response.StatusCode);
                     }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
