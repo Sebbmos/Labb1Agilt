@@ -18,16 +18,21 @@ namespace UptimeMonitor
                 .ValidateDataAnnotations()
                 .ValidateOnStart();
 
-            builder.Services.AddHttpClient("monitor")
+
+            builder.Services.AddHttpClient("monitor", client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(5);
+            })
                 .AddPolicyHandler(HttpPolicyExtensions
                     .HandleTransientHttpError()
+                    .Or<TaskCanceledException>()
                     .WaitAndRetryAsync(3, retryAttempt =>
-                        TimeSpan.FromSeconds(2)));
-
+                        TimeSpan.FromMilliseconds(300)));
 
             var connectionString = builder.Configuration["ConnectionStrings:SQLiteDefault"] ?? throw new InvalidOperationException("Connection string not found");
             builder.Services.AddDbContext<MonitorContext>(options =>
                 options.UseSqlite(connectionString));
+
             builder.Services.AddHostedService<Worker>();
 
             var host = builder.Build();

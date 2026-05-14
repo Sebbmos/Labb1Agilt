@@ -1,6 +1,10 @@
+using UptimeMonitor.Data;
+using UptimeMonitor.Data.Entities;
 namespace UptimeMonitor
+
 {
     public class Worker(
+        IServiceScopeFactory scopeFactory,
         IConfiguration configuration,
         ILogger<Worker> logger,
         IHttpClientFactory httpClientFactory) : BackgroundService
@@ -11,8 +15,16 @@ namespace UptimeMonitor
             configuration.GetSection("MonitorSettings:Urls").Get<string[]>()
             ?? throw new InvalidOperationException("MonitorSettings:Urls is missing from appsettings.json");
 
+
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            var parallelOptions = new ParallelOptions
+            {
+                CancellationToken = stoppingToken,
+                MaxDegreeOfParallelism = 5
+            };
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 if (logger.IsEnabled(LogLevel.Information))
@@ -37,6 +49,9 @@ namespace UptimeMonitor
                 var response = await HttpClient.GetAsync(url, stoppingToken);
 
                 stopwatch.Stop();
+                using var scope = scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<MonitorContext>();
+
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -45,6 +60,14 @@ namespace UptimeMonitor
                         stopwatch.ElapsedMilliseconds,
                         url,
                         response.StatusCode);
+                    if (stopwatch.ElapsedMilliseconds > 1000)
+                    {
+                        logger.LogWarning(
+                            "Request finished slowly in {responsetime} ms. URL {url} is up but slow. Status code: {statusCode}",
+                            stopwatch.ElapsedMilliseconds,
+                            url,
+                            response.StatusCode);
+                    }
                 }
                 else
                 {
@@ -54,11 +77,21 @@ namespace UptimeMonitor
                         url,
                         response.StatusCode);
                 }
+                LogEntry logEntry = new LogEntry
+                {
+                    Url = url,
+                    StatusCode = response.StatusCode,
+                    ResponseTime = stopwatch.ElapsedMilliseconds
+                };
+
+                await context.LogEntries.AddAsync(logEntry);
+                await context.SaveChangesAsync();
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogError(ex, "Failed to reach URL {url}", url);
             }
+            
         }
     }
 }
