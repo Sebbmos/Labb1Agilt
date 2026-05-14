@@ -482,4 +482,4 @@ $RECYCLE.BIN/
 *.swp
 
 appsettings*.json
-LocalMonitorDatabase.db
+LocalMonitorDatabase.db*
