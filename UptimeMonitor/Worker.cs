@@ -1,8 +1,11 @@
 namespace UptimeMonitor
 {
-    public class Worker(IConfiguration configuration, ILogger<Worker> logger) : BackgroundService
+    public class Worker(
+        IConfiguration configuration,
+        ILogger<Worker> logger,
+        IHttpClientFactory httpClientFactory) : BackgroundService
     {
-        private static readonly HttpClient HttpClient = new();
+        private readonly HttpClient HttpClient = httpClientFactory.CreateClient("monitor");
 
         private readonly string[] _urls =
             configuration.GetSection("MonitorSettings:Urls").Get<string[]>()
