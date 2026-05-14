@@ -1,3 +1,6 @@
+using Polly;
+using Polly.Extensions.Http;
+
 using Microsoft.EntityFrameworkCore;
 using UptimeMonitor.Data;
 
@@ -9,11 +12,24 @@ namespace UptimeMonitor
         {
             var builder = Host.CreateApplicationBuilder(args);
 
+            builder.Services
+                .AddOptions<MonitorSettings>()
+                .Bind(builder.Configuration.GetSection("MonitorSettings"))
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
+
+            builder.Services.AddHttpClient("monitor")
+                .AddPolicyHandler(HttpPolicyExtensions
+                    .HandleTransientHttpError()
+                    .WaitAndRetryAsync(3, retryAttempt =>
+                        TimeSpan.FromSeconds(2)));
+
+
             var connectionString = builder.Configuration["ConnectionStrings:SQLiteDefault"] ?? throw new InvalidOperationException("Connection string not found");
             builder.Services.AddDbContext<MonitorContext>(options =>
                 options.UseSqlite(connectionString));
             builder.Services.AddHostedService<Worker>();
-            
+
             var host = builder.Build();
             using (var scope = host.Services.CreateScope())
             {
