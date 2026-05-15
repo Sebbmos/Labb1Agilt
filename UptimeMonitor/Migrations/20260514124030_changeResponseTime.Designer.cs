@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UptimeMonitor.Data;
 
@@ -10,9 +11,11 @@ using UptimeMonitor.Data;
 namespace UptimeMonitor.Migrations
 {
     [DbContext(typeof(MonitorContext))]
-    partial class MonitorContextModelSnapshot : ModelSnapshot
+    [Migration("20260514124030_changeResponseTime")]
+    partial class changeResponseTime
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -28,14 +31,10 @@ namespace UptimeMonitor.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.Property<string>("ResponseMessage")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<long>("ResponseTime")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("StatusCode")
+                    b.Property<int>("StatusCode")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Url")
