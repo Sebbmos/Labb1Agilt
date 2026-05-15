@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using UptimeMonitor.Data;
 using UptimeMonitor.Data.Entities;
 namespace UptimeMonitor
@@ -44,11 +45,13 @@ namespace UptimeMonitor
         private async Task CheckUrlAsync(string url, CancellationToken stoppingToken)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            string responseMessage = string.Empty;
+            HttpStatusCode statusCode;
             try
             {
 
-                var response = await HttpClient.GetAsync(url, stoppingToken);
-
+               var response = await HttpClient.GetAsync(url, stoppingToken);
+                statusCode = response.StatusCode;
                 stopwatch.Stop();
                 using var scope = scopeFactory.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<MonitorContext>();
@@ -58,28 +61,22 @@ namespace UptimeMonitor
                 {
                     if (stopwatch.ElapsedMilliseconds > 1000)
                     {
-                        logger.LogWarning(
-                            "Request took {responsetime} ms. URL {url} is up but server might be experiencing issues. Status code: {statuscode}",
-                            stopwatch.ElapsedMilliseconds,
-                            url,
-                            response.StatusCode);
+                        responseMessage = $"Request finished in {stopwatch.ElapsedMilliseconds} ms. URL {url} is up but server might be experiencing issues. Status code: {response.StatusCode}";
+
+                        logger.LogWarning("{ResponseMessage}", responseMessage);
                     }
                     else
                     {
-                        logger.LogInformation(
-                            "Request finished in {responsetime} ms. URL {url} is up. Status code: {statusCode}",
-                            stopwatch.ElapsedMilliseconds,
-                            url,
-                            response.StatusCode);
+                        responseMessage = $"Request finished in {stopwatch.ElapsedMilliseconds} ms. URL {url} is up. Status code: {response.StatusCode}";
+
+                        logger.LogInformation("{ResponseMessage}", responseMessage);
                     }
                 }
                 else
                 {
-                    logger.LogWarning(
-                        "Request finished in {responsetime} ms. URL {url} is down. Status code: {statusCode}",
-                        stopwatch.ElapsedMilliseconds,
-                        url,
-                        response.StatusCode);
+                    responseMessage = $"Request finished in {stopwatch.ElapsedMilliseconds} ms. URL {url} is down. Status code: {response.StatusCode}";
+
+                    logger.LogWarning("{ResponseMessage}", responseMessage);
                 }
                 LogEntry logEntry = new LogEntry
                 {
@@ -94,24 +91,25 @@ namespace UptimeMonitor
             catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
             {
                 stopwatch.Stop();
-                logger.LogWarning(
-                    "Request timed out after {responsetime} ms. URL {url} is down.",
-                    stopwatch.ElapsedMilliseconds,
-                    url);
+                responseMessage = $"Request timed out after {stopwatch.ElapsedMilliseconds} ms. URL {url} is down.";
+
+                logger.LogWarning("{ResponseMessage}", responseMessage);
                 return;
             }
             catch (HttpRequestException ex)
             {
                 stopwatch.Stop();
-                logger.LogError(ex, "Failed to reach URL {url}, Time it took {responsetime} ms",
-                    url,
-                    stopwatch.ElapsedMilliseconds);
+                responseMessage = $"Request failed after {stopwatch.ElapsedMilliseconds} ms. URL {url} is down. Status code: {ex.StatusCode} Error: {ex.Message}";
+
+                logger.LogError("{ResponseMessage}", responseMessage);
                 return;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 stopwatch.Stop();
-                logger.LogError(ex, "Unexpected error with the URL {url}", url);
+                responseMessage = $"Unexpected error after {stopwatch.ElapsedMilliseconds} ms. URL {url} is down. Error: {ex.Message}";
+
+                logger.LogError("{ResponseMessage}", responseMessage);
                 return;
             }
 
