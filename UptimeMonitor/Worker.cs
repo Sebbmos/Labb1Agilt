@@ -56,15 +56,18 @@ namespace UptimeMonitor
 
                 if (response.IsSuccessStatusCode)
                 {
-                    logger.LogInformation(
-                        "Request finished in {responsetime} ms. URL {url} is up. Status code: {statusCode}",
-                        stopwatch.ElapsedMilliseconds,
-                        url,
-                        response.StatusCode);
                     if (stopwatch.ElapsedMilliseconds > 1000)
                     {
                         logger.LogWarning(
-                            "Request finished slowly in {responsetime} ms. URL {url} is up but slow. Status code: {statusCode}",
+                            "Request took {responsetime} ms. URL {url} is up but server might be experiencing issues. Status code: {statuscode}",
+                            stopwatch.ElapsedMilliseconds,
+                            url,
+                            response.StatusCode);
+                    }
+                    else
+                    {
+                        logger.LogInformation(
+                            "Request finished in {responsetime} ms. URL {url} is up. Status code: {statusCode}",
                             stopwatch.ElapsedMilliseconds,
                             url,
                             response.StatusCode);
