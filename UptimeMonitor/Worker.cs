@@ -21,6 +21,9 @@ namespace UptimeMonitor
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            using var scope = scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<MonitorContext>();
+
             var parallelOptions = new ParallelOptions
             {
                 CancellationToken = stoppingToken,
@@ -34,28 +37,31 @@ namespace UptimeMonitor
                     logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
                 }
 
-                var tasks = _urls.Select(url => CheckUrlAsync(url, stoppingToken));
+                var tasks = _urls.Select(url => CheckUrlAsync(url, context, stoppingToken));
 
                 await Task.WhenAll(tasks);
+
+                await context.SaveChangesAsync(stoppingToken);
 
                 await Task.Delay(10000, stoppingToken);
             }
         }
 
-        private async Task CheckUrlAsync(string url, CancellationToken stoppingToken)
+        private async Task CheckUrlAsync(string url, MonitorContext context, CancellationToken stoppingToken)
         {
+
+
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            string responseMessage = string.Empty;
-            HttpStatusCode statusCode;
+            string responseMessage;
+            var logEntry = new LogEntry()
+            {
+                Url = url
+            };
+
             try
             {
-
-               var response = await HttpClient.GetAsync(url, stoppingToken);
-                statusCode = response.StatusCode;
+                var response = await HttpClient.GetAsync(url, stoppingToken);
                 stopwatch.Stop();
-                using var scope = scopeFactory.CreateScope();
-                var context = scope.ServiceProvider.GetRequiredService<MonitorContext>();
-
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -78,15 +84,11 @@ namespace UptimeMonitor
 
                     logger.LogWarning("{ResponseMessage}", responseMessage);
                 }
-                LogEntry logEntry = new LogEntry
-                {
-                    Url = url,
-                    StatusCode = response.StatusCode,
-                    ResponseTime = stopwatch.ElapsedMilliseconds
-                };
 
-                await context.LogEntries.AddAsync(logEntry);
-                await context.SaveChangesAsync();
+                logEntry.StatusCode = response.StatusCode;
+                logEntry.ResponseTime = stopwatch.ElapsedMilliseconds;
+                logEntry.ResponseMessage = responseMessage;
+                await context.LogEntries.AddAsync(logEntry, stoppingToken);
             }
             catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
             {
@@ -94,7 +96,9 @@ namespace UptimeMonitor
                 responseMessage = $"Request timed out after {stopwatch.ElapsedMilliseconds} ms. URL {url} is down.";
 
                 logger.LogWarning("{ResponseMessage}", responseMessage);
-                return;
+                logEntry.ResponseMessage = responseMessage;
+                await context.LogEntries.AddAsync(logEntry, stoppingToken);
+//                return;
             }
             catch (HttpRequestException ex)
             {
@@ -102,7 +106,12 @@ namespace UptimeMonitor
                 responseMessage = $"Request failed after {stopwatch.ElapsedMilliseconds} ms. URL {url} is down. Status code: {ex.StatusCode} Error: {ex.Message}";
 
                 logger.LogError("{ResponseMessage}", responseMessage);
-                return;
+
+                logEntry.StatusCode = ex.StatusCode;
+                logEntry.ResponseTime = stopwatch.ElapsedMilliseconds;
+                logEntry.ResponseMessage = responseMessage;
+                await context.LogEntries.AddAsync(logEntry, stoppingToken);
+//                return;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -110,11 +119,12 @@ namespace UptimeMonitor
                 responseMessage = $"Unexpected error after {stopwatch.ElapsedMilliseconds} ms. URL {url} is down. Error: {ex.Message}";
 
                 logger.LogError("{ResponseMessage}", responseMessage);
-                return;
-            }
 
-            
-            
+                logEntry.ResponseTime = stopwatch.ElapsedMilliseconds;
+                logEntry.ResponseMessage = responseMessage;
+                await context.LogEntries.AddAsync(logEntry, stoppingToken);
+//                return;
+            }
         }
     }
 }

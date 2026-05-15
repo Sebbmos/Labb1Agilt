@@ -12,6 +12,10 @@ namespace UptimeMonitor
         {
             var builder = Host.CreateApplicationBuilder(args);
 
+            builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
+
+            builder.Logging.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
+
             builder.Services
                 .AddOptions<MonitorSettings>()
                 .Bind(builder.Configuration.GetSection("MonitorSettings"))

@@ -18,15 +18,17 @@ public class MonitorContext : DbContext
 
             entity.Property(e => e.Url)
                 .IsRequired();
-            
+
             entity.Property(e => e.StatusCode)
-                .HasConversion<int>()
-                .IsRequired();
+                .HasConversion<int>();
 
             entity.Property(e => e.ResponseTime);
             
             entity.Property(e => e.Date)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.Property(e => e.ResponseMessage)
+                .IsRequired();
         });
     }
 }
