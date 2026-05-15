@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using UptimeMonitor.Data;
 using UptimeMonitor.Data.Entities;
 namespace UptimeMonitor
@@ -42,9 +43,9 @@ namespace UptimeMonitor
 
         private async Task CheckUrlAsync(string url, CancellationToken stoppingToken)
         {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
-                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
                 var response = await HttpClient.GetAsync(url, stoppingToken);
 
@@ -87,10 +88,31 @@ namespace UptimeMonitor
                 await context.LogEntries.AddAsync(logEntry);
                 await context.SaveChangesAsync();
             }
+            catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
+            {
+                stopwatch.Stop();
+                logger.LogWarning(
+                    "Request timed out after {responsetime} ms. URL {url} is down.",
+                    stopwatch.ElapsedMilliseconds,
+                    url);
+                return;
+            }
+            catch (HttpRequestException ex)
+            {
+                stopwatch.Stop();
+                logger.LogError(ex, "Failed to reach URL {url}, Time it took {responsetime} ms",
+                    url,
+                    stopwatch.ElapsedMilliseconds);
+                return;
+            }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger.LogError(ex, "Failed to reach URL {url}", url);
+                stopwatch.Stop();
+                logger.LogError(ex, "Unexpected error with the URL {url}", url);
+                return;
             }
+
+            
             
         }
     }
